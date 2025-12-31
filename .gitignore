@@ -13,7 +13,19 @@ target/
 .classpath
 .settings/
 infra/data/mosquitto.db
+# Ignore environment secrets
+.env
 
+# Ignore Docker data (if you mapped any local folders)
+mosquitto/data/
+mosquitto/log/
+timescaledb_data/
+
+# Java/Maven/IDE junk
+target/
+.mvn/
+.idea/
+*.class
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -221,3 +233,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+mosquitto/config/password_file
+mosquitto/data/
+mosquitto/log/

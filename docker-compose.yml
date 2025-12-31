@@ -7,21 +7,29 @@ services:
     container_name: open-pmf-backend
     ports:
       - "8080:8080"
-    env_file:           
-      - .env          
+    env_file:             
+      - .env
     depends_on:
-      - timescaledb
-      - mosquitto_broker
+      timescaledb:
+        condition: service_started
+      mosquitto_broker:
+        condition: service_healthy
     restart: always
 
-  # --- Simulator Service (Python) ---
+  # --- Simulator Service (Python / Edge Device) ---
   simulator:
     build:
       context: ./edge
       dockerfile: Dockerfile
     container_name: open-pmf-simulator
+    environment:
+      - MQTT_TOPIC=${MQTT_TOPIC}
+      - MQTT_BROKER_HOST=mosquitto_broker
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
     depends_on:
-      - mosquitto_broker
+      mosquitto_broker:
+        condition: service_healthy
     restart: always
 
   # --- Database Service (TimescaleDB) ---
@@ -29,9 +37,8 @@ services:
     image: timescale/timescaledb:latest-pg16
     container_name: timescaledb
     environment:
-      # Map .env variables to Postgres internal variables
-      - POSTGRES_USER=${SPRING_DATASOURCE_USERNAME}     
-      - POSTGRES_PASSWORD=${SPRING_DATASOURCE_PASSWORD} 
+      - POSTGRES_USER=${SPRING_DATASOURCE_USERNAME}
+      - POSTGRES_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - POSTGRES_DB=openpmf
     ports:
       - "5432:5432"
@@ -45,11 +52,15 @@ services:
     container_name: mosquitto_broker
     ports:
       - "1883:1883"
-      - "9001:9001"
     volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
+      - ./mosquitto/config:/mosquitto/config:Z
+      - ./mosquitto/data:/mosquitto/data:Z
+      - ./mosquitto/log:/mosquitto/log:Z
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-u", "${MQTT_USER}", "-P", "${MQTT_PASS}"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
     restart: always
 
 volumes:

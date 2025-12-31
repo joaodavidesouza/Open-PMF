@@ -1,32 +1,56 @@
 package com.openpmf.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.openpmf.backend.event.NewMeasurementEvent;
 import com.openpmf.backend.model.SensorMeasurement;
-import com.openpmf.backend.model.TelemetryData;
 import com.openpmf.backend.repository.MeasurementRepository;
-import org.springframework.context.ApplicationEventPublisher;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.channel.DirectChannel;
 import org.springframework.integration.core.MessageProducer;
+import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
+import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
+import org.springframework.messaging.MessagingException;
+
+import java.time.Instant;
 
 @Configuration
 public class MqttConfig {
 
-    private final ObjectMapper objectMapper;
-    private final MeasurementRepository repository;
-    private final ApplicationEventPublisher eventPublisher;
+    @Value("${app.mqtt.topic}")
+    private String topic;
 
-    public MqttConfig(ObjectMapper objectMapper, MeasurementRepository repository, ApplicationEventPublisher eventPublisher) {
-        this.objectMapper = objectMapper;
-        this.repository = repository;
-        this.eventPublisher = eventPublisher;
+    @Value("${mqtt.broker.url}")
+    private String brokerUrl;
+
+    // 1. Injecting credentials from application.properties
+    @Value("${mqtt.username}")
+    private String username;
+
+    @Value("${mqtt.password}")
+    private String password;
+
+    @Bean
+    public MqttPahoClientFactory mqttClientFactory() {
+        DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setServerURIs(new String[]{brokerUrl});
+        options.setCleanSession(true);
+        
+        // 2. ACTIVATING AUTHENTICATION
+        options.setUserName(username);
+        options.setPassword(password.toCharArray());
+        options.setAutomaticReconnect(true); // Extra reliability
+        
+        factory.setConnectionOptions(options);
+        return factory;
     }
 
     @Bean
@@ -35,58 +59,39 @@ public class MqttConfig {
     }
 
     @Bean
-    public MessageProducer inbound() {
-        String brokerUrl = System.getenv("MQTT_BROKER_URL");
-        if (brokerUrl == null || brokerUrl.isEmpty()) {
-            brokerUrl = "tcp://localhost:1883";
-        }
-
-        // Unique Client ID to avoid connection conflicts
-        String clientId = "open-pmf-backend-" + System.currentTimeMillis();
-        
+    public MessageProducer mqttInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter(brokerUrl, clientId, "industry/textile/machine1");
-
+                new MqttPahoMessageDrivenChannelAdapter("backendClient", mqttClientFactory(), topic);
+        
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
-        adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
-        
         return adapter;
     }
 
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public MessageHandler hardwareDataHandler() {
+    public MessageHandler handler(MeasurementRepository repository) {
         return message -> {
             String payload = (String) message.getPayload();
-            // Uncomment the line below for raw debugging
-            // System.out.println(">>> DEBUG: Raw Message Received: " + payload);
+            System.out.println("📥 Received MQTT Message: " + payload);
 
             try {
-                TelemetryData telemetry = objectMapper.readValue(payload, TelemetryData.class);
+                ObjectMapper mapper = new ObjectMapper();
+                var jsonNode = mapper.readTree(payload);
+                
+                String machineId = jsonNode.get("machineId").asText();
+                double vibration = jsonNode.get("vibration").asDouble();
+                Instant timestamp = jsonNode.has("timestamp") 
+                        ? Instant.parse(jsonNode.get("timestamp").asText()) 
+                        : Instant.now();
 
-                if (telemetry.machineId() == null) {
-                    System.err.println(">>> CRITICAL: machineId is NULL! Check @JsonProperty mapping.");
-                    return;
-                }
-
-                SensorMeasurement entity = new SensorMeasurement(
-                    telemetry.machineId(),
-                    telemetry.vibration(),
-                    telemetry.timestamp()
-                );
-                
-                repository.save(entity);
-                
-                // Notify the system (Publish event for Real-time SSE)
-                eventPublisher.publishEvent(new NewMeasurementEvent(this, entity));
-                
-                System.out.println(">>> SUCCESS: Data saved (ID: " + entity.getId() + ")");
+                SensorMeasurement measurement = new SensorMeasurement(machineId, vibration, timestamp);
+                repository.save(measurement);
+                System.out.println("✅ Data Saved to DB: ID=" + measurement.getId());
 
             } catch (Exception e) {
-                System.err.println(">>> ERROR Processing Message: " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("❌ Error processing MQTT message: " + e.getMessage());
             }
         };
     }
