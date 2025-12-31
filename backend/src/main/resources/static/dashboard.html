@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Open-PMF | Real-Time Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { color: #333; margin-top: 0; }
+        .status { font-size: 0.9em; color: #666; margin-bottom: 10px; }
+        .live-badge { background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>🏭 Machine Vibration Monitor <span class="live-badge">LIVE</span></h2>
+        <div class="status" id="connectionStatus">Connecting to stream...</div>
+        <canvas id="vibrationChart"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('vibrationChart').getContext('2d');
+        const maxDataPoints = 50; // Keep chart clean
+
+        // Initialize Chart
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Vibration (G)',
+                    data: [],
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4 // Smooth curves
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'second' },
+                        title: { display: true, text: 'Time' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Amplitude' }
+                    }
+                },
+                animation: false // Disable animation for performance in real-time
+            }
+        });
+
+        // Connect to Java Backend (SSE)
+        const eventSource = new EventSource('/api/measurements/stream');
+
+        const statusDiv = document.getElementById('connectionStatus');
+
+        eventSource.onopen = () => {
+            statusDiv.innerHTML = "🟢 Connected to Open-PMF Core Stream";
+            statusDiv.style.color = "green";
+        };
+
+        eventSource.onerror = (err) => {
+            statusDiv.innerHTML = "🔴 Connection Lost. Retrying...";
+            statusDiv.style.color = "red";
+            console.error("SSE Error:", err);
+        };
+
+        // Handle incoming data
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            // Add new data point
+            const point = {
+                x: data.timestamp, // ISO String from Java
+                y: data.vibration
+            };
+
+            chart.data.datasets[0].data.push(point);
+
+            // Remove old data to keep chart sliding
+            if (chart.data.datasets[0].data.length > maxDataPoints) {
+                chart.data.datasets[0].data.shift();
+            }
+
+            chart.update();
+        };
+    </script>
+</body>
+</html>
