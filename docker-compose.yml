@@ -1,22 +1,37 @@
-version: '3.8'
-
 services:
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: mosquitto_broker
+  # --- Backend Service (Java Spring Boot) ---
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: open-pmf-backend
     ports:
-      - "1883:1883"
-    volumes:
-      - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf:Z
-      - mosquitto_data:/mosquitto/data
+      - "8080:8080"
+    env_file:           
+      - .env          
+    depends_on:
+      - timescaledb
+      - mosquitto_broker
     restart: always
 
+  # --- Simulator Service (Python) ---
+  simulator:
+    build:
+      context: ./edge
+      dockerfile: Dockerfile
+    container_name: open-pmf-simulator
+    depends_on:
+      - mosquitto_broker
+    restart: always
+
+  # --- Database Service (TimescaleDB) ---
   timescaledb:
     image: timescale/timescaledb:latest-pg16
     container_name: timescaledb
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      # Map .env variables to Postgres internal variables
+      - POSTGRES_USER=${SPRING_DATASOURCE_USERNAME}     
+      - POSTGRES_PASSWORD=${SPRING_DATASOURCE_PASSWORD} 
       - POSTGRES_DB=openpmf
     ports:
       - "5432:5432"
@@ -24,27 +39,18 @@ services:
       - timescaledb_data:/var/lib/postgresql/data
     restart: always
 
-  backend:
-    build: ./backend
-    container_name: open_pmf_backend
+  # --- MQTT Broker Service ---
+  mosquitto_broker:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto_broker
     ports:
-      - "8080:8080"
-    environment:
-      - MQTT_BROKER_URL=tcp://mosquitto:1883
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://timescaledb:5432/openpmf
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
-    depends_on:
-      - mosquitto
-      - timescaledb
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: always
 
-  simulator:
-    build: ./edge
-    container_name: mqtt_simulator
-    depends_on:
-      - mosquitto
-
-# Secção de volumes globais
 volumes:
   timescaledb_data:
-  mosquitto_data:
