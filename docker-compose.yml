@@ -1,16 +1,17 @@
 services:
   mosquitto:
-  
     image: eclipse-mosquitto:latest
     container_name: mosquitto_broker
     ports:
       - "1883:1883"
     volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infra/data:/mosquitto/data
+      - ./infra/log:/mosquitto/log
     restart: always
 
   simulator:
-    build: ../edge
+    build: ./edge
     container_name: mqtt_simulator
     network_mode: "host"
     environment:
