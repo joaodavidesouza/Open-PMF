@@ -8,8 +8,8 @@ services:
       - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf
     restart: always
 
-  simulator:
-    build: ./edge
+simulator:
+    build: ../edge
     container_name: mqtt_simulator
     network_mode: "host"
     environment:
