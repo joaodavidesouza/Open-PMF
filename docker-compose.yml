@@ -18,9 +18,11 @@ services:
     depends_on:
       - mosquitto
 
-  backend:
+backend:
     build: ./backend
     container_name: open_pmf_backend
+    ports:
+      - "8080:8080"
     environment:
       - MQTT_BROKER_URL=tcp://mosquitto:1883
     depends_on:
