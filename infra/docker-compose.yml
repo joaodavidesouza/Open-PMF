@@ -5,10 +5,10 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     restart: always
 
-simulator:
+  simulator:
     build: ../edge
     container_name: mqtt_simulator
     network_mode: "host"
