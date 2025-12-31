@@ -8,13 +8,21 @@ services:
       - "1883:1883"
     volumes:
       - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf:Z
+      - mosquitto_data:/mosquitto/data
     restart: always
 
-  simulator:
-    build: ./edge
-    container_name: mqtt_simulator
-    depends_on:
-      - mosquitto
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescaledb
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=openpmf
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    restart: always
 
   backend:
     build: ./backend
@@ -23,5 +31,20 @@ services:
       - "8080:8080"
     environment:
       - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://timescaledb:5432/openpmf
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password
     depends_on:
       - mosquitto
+      - timescaledb
+
+  simulator:
+    build: ./edge
+    container_name: mqtt_simulator
+    depends_on:
+      - mosquitto
+
+# Secção de volumes globais
+volumes:
+  timescaledb_data:
+  mosquitto_data:
