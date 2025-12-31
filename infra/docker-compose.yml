@@ -1,0 +1,8 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto_broker
+    ports:
+      - "1883:1883"
+    command: mosquitto -p 1883
+    restart: always
