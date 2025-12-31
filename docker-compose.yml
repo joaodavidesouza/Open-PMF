@@ -5,16 +5,23 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./infra/data:/mosquitto/data
-      - ./infra/log:/mosquitto/log
+      - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf:Z
+      - ./infra/data:/mosquitto/data:Z
+      - ./infra/log:/mosquitto/log:Z
     restart: always
 
   simulator:
     build: ./edge
     container_name: mqtt_simulator
-    network_mode: "host"
+    depends_on:
+      - mosquitto
+
+  backend:
+    build: ./backend
+    container_name: open_pmf_backend
+    ports:
+      - "8080:8080"
     environment:
-      - PYTHONUNBUFFERED=1
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
     depends_on:
       - mosquitto
