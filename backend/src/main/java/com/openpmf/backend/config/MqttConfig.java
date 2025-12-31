@@ -24,17 +24,21 @@ public class MqttConfig {
 
 @Bean
 public MessageProducer inbound() {
-    // Tenta pegar a URL do Docker, se não achar, usa o localhost (para rodar no seu Fedora)
     String brokerUrl = System.getenv("MQTT_BROKER_URL");
-    if (brokerUrl == null) {
+    if (brokerUrl == null || brokerUrl.isEmpty()) {
         brokerUrl = "tcp://localhost:1883";
     }
-    
+
     String clientId = "open-pmf-backend-" + System.currentTimeMillis();
     MqttPahoMessageDrivenChannelAdapter adapter =
             new MqttPahoMessageDrivenChannelAdapter(brokerUrl, clientId, "industry/textile/machine1");
+
+    adapter.setCompletionTimeout(5000);
+    adapter.setConverter(new DefaultPahoMessageConverter());
+    adapter.setQos(1);
     
-    // ... resto do código igual
+    adapter.setOutputChannel(mqttInputChannel()); 
+    
     return adapter;
 }
 
