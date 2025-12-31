@@ -13,15 +13,17 @@ services:
   simulator:
     build: ./edge
     container_name: mqtt_simulator
+    environment:
+      - MQTT_BROKER=mosquitto
     depends_on:
       - mosquitto
 
   backend:
     build: ./backend
     container_name: open_pmf_backend
-    ports:
-      - "8080:8080"
     environment:
       - MQTT_BROKER_URL=tcp://mosquitto:1883
+    ports:
+      - "8080:8080"
     depends_on:
       - mosquitto

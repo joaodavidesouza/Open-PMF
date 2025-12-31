@@ -5,7 +5,7 @@ import random
 import paho.mqtt.client as mqtt
 
 # Environment variables or defaults
-BROKER = os.getenv("MQTT_BROKER", "localhost") 
+BROKER = os.getenv("MQTT_BROKER", "mosquitto")
 PORT = int(os.getenv("MQTT_PORT", 1883))
 TOPIC = os.getenv("MQTT_TOPIC", "industry/textile/machine1")
 
