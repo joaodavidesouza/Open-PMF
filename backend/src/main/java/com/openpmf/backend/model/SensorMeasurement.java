@@ -24,7 +24,6 @@ public class SensorMeasurement {
     @Column(nullable = false)
     private Instant timestamp;
 
-    // Construtor utilitário para conversão rápida do Record
     public SensorMeasurement(String machineId, Double vibration, Instant timestamp) {
         this.machineId = machineId;
         this.vibration = vibration;

@@ -1,9 +1,11 @@
 package com.openpmf.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.openpmf.backend.model.TelemetryData;
+import com.openpmf.backend.event.NewMeasurementEvent;
 import com.openpmf.backend.model.SensorMeasurement;
+import com.openpmf.backend.model.TelemetryData;
 import com.openpmf.backend.repository.MeasurementRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -19,10 +21,12 @@ public class MqttConfig {
 
     private final ObjectMapper objectMapper;
     private final MeasurementRepository repository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public MqttConfig(ObjectMapper objectMapper, MeasurementRepository repository) {
+    public MqttConfig(ObjectMapper objectMapper, MeasurementRepository repository, ApplicationEventPublisher eventPublisher) {
         this.objectMapper = objectMapper;
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Bean
@@ -37,6 +41,7 @@ public class MqttConfig {
             brokerUrl = "tcp://localhost:1883";
         }
 
+        // Unique Client ID to avoid connection conflicts
         String clientId = "open-pmf-backend-" + System.currentTimeMillis();
         
         MqttPahoMessageDrivenChannelAdapter adapter =
@@ -55,13 +60,11 @@ public class MqttConfig {
     public MessageHandler hardwareDataHandler() {
         return message -> {
             String payload = (String) message.getPayload();
-            
-            System.out.println(">>> DEBUG: Raw Message Received: " + payload);
+            // Uncomment the line below for raw debugging
+            // System.out.println(">>> DEBUG: Raw Message Received: " + payload);
 
             try {
                 TelemetryData telemetry = objectMapper.readValue(payload, TelemetryData.class);
-
-                System.out.println(">>> DEBUG: Parsed Data - ID: " + telemetry.machineId() + ", Vib: " + telemetry.vibration());
 
                 if (telemetry.machineId() == null) {
                     System.err.println(">>> CRITICAL: machineId is NULL! Check @JsonProperty mapping.");
@@ -75,7 +78,11 @@ public class MqttConfig {
                 );
                 
                 repository.save(entity);
-                System.out.println(">>> SUCCESS: Data saved to TimescaleDB (ID: " + entity.getId() + ")");
+                
+                // Notify the system (Publish event for Real-time SSE)
+                eventPublisher.publishEvent(new NewMeasurementEvent(this, entity));
+                
+                System.out.println(">>> SUCCESS: Data saved (ID: " + entity.getId() + ")");
 
             } catch (Exception e) {
                 System.err.println(">>> ERROR Processing Message: " + e.getMessage());
