@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mosquitto:
     image: eclipse-mosquitto:latest
@@ -6,19 +8,15 @@ services:
       - "1883:1883"
     volumes:
       - ./infra/mosquitto.conf:/mosquitto/config/mosquitto.conf:Z
-      - ./infra/data:/mosquitto/data:Z
-      - ./infra/log:/mosquitto/log:Z
     restart: always
 
   simulator:
     build: ./edge
     container_name: mqtt_simulator
-    environment:
-      - MQTT_BROKER=mosquitto
     depends_on:
       - mosquitto
 
-backend:
+  backend:
     build: ./backend
     container_name: open_pmf_backend
     ports:
