@@ -63,6 +63,15 @@ Machine learning is treated as an **optional, external capability**, not a manda
 
 ---
 
+## 🚧 Project Status
+
+Open-PMF is an evolving, architecture-first framework.
+
+The current implementation focuses on data ingestion, messaging, and storage to establish a realistic baseline for industrial telemetry systems. Advanced capabilities such as visualization, alerting, and machine learning are intentionally scoped as future extensions.
+
+This approach allows the core architecture to remain stable while higher-level features evolve independently.
+
+---
 ## 🏗️ Architecture Overview
 
 
