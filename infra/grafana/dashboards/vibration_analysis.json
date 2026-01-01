@@ -5,58 +5,64 @@
   "tags": ["industrial", "open-pmf"],
   "timezone": "browser",
   "schemaVersion": 42,
-  "version": 2,
+  "version": 8,
   "refresh": "5s",
+  "templating": {
+    "list": [
+      {
+        "name": "machine",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "openpmf-ds" },
+        "query": "SELECT DISTINCT machine_id FROM sensor_measurements ORDER BY 1",
+        "multi": true,
+        "includeAll": true,
+        "label": "Machine",
+        "current": { "selected": true, "text": "All", "value": "$__all" }
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
       "type": "timeseries",
-      "title": "Real-Time Vibration Monitor",
-      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
-      "datasource": {
-        "type": "postgres",
-        "uid": "openpmf-ds"
-      },
+      "title": "${machine:raw} Vibration Monitor",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "repeat": "machine",
+      "repeatDirection": "h",
+      "datasource": { "type": "postgres", "uid": "openpmf-ds" },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
+          "color": { "mode": "thresholds" },
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "fillOpacity": 30,
-            "gradientMode": "scheme",
             "lineWidth": 2,
-            "thresholdsStyle": {
-              "mode": "area"
-            }
+            "thresholdsStyle": { "mode": "area" }
           },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
             ]
           }
         }
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
         "tooltip": { "mode": "single" }
       },
       "targets": [
         {
           "datasource": { "type": "postgres", "uid": "openpmf-ds" },
           "editorMode": "code",
-          "format": "table",
-          "rawSql": "SELECT timestamp AS \"time\", vibration AS \"Vibration G\", machine_id AS \"Machine\" FROM sensor_measurements WHERE $__timeFilter(timestamp) ORDER BY 1",
+          "format": "time_series",
+          "rawSql": "SELECT timestamp AS \"time\", vibration AS \"value\" FROM sensor_measurements WHERE machine_id = '${machine}' AND $__timeFilter(timestamp) ORDER BY 1",
           "refId": "A"
         }
       ]

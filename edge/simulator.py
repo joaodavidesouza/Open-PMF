@@ -32,30 +32,39 @@ except Exception as e:
 client.loop_start()
 
 print(f"🚀 Simulation started. Target topic: {topic}")
+# --- Define our fleet of machines ---
+machines = [
+    {"id": "cnc-machine-01", "normal_vib": (0.5, 2.0), "anomaly_vib": (5.0, 8.0)},
+    {"id": "cnc-machine-02", "normal_vib": (0.8, 2.5), "anomaly_vib": (6.0, 9.0)},
+    {"id": "stamping-press-01", "normal_vib": (2.0, 5.0), "anomaly_vib": (10.0, 15.0)}
+]
+
+print(f"🚀 Fleet simulation started for {len(machines)} machines.")
 
 try:
     while True:
-        # Generate base vibration data
-        vibration = round(random.uniform(0.5, 3.0), 2)
-        
-        # Anomaly Injection Logic:
-        # Simulate a mechanical fault with a 5% probability
-        if random.random() > 0.95:
-            print("⚠️ ANOMALY INJECTED!")
-            vibration = round(random.uniform(5.0, 10.0), 2)
-
-        # Standardized Payload Contract
-        payload = {
-            "machine_id": "cnc-machine-01",
-            "vibration": vibration,
-            "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
-
-        # Send data to the messaging layer
-        client.publish(topic, json.dumps(payload))
-        print(f"📤 Sent Telemetry: {payload}")
+        # Loop through each machine and send its telemetry
+        for machine in machines:
+            vibration = round(random.uniform(*machine["normal_vib"]), 2)
             
-        time.sleep(2)
+            # Each machine has its own chance of having an anomaly
+            if random.random() > 0.98:
+                print(f"⚠️ ANOMALY INJECTED for {machine['id']}!")
+                vibration = round(random.uniform(*machine["anomaly_vib"]), 2)
+
+            payload = {
+                "machine_id": machine["id"],
+                "vibration": vibration,
+                "timestamp": datetime.utcnow().isoformat() + "Z"
+            }
+            
+            # Publish to the broker
+            client.publish(topic, json.dumps(payload))
+            print(f"📤 Sent Telemetry: {payload}")
+        
+        # Wait before the next fleet-wide reading
+        time.sleep(3)
+
 except KeyboardInterrupt:
     print("Stopping simulator...")
     client.loop_stop()
