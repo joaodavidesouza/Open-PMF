@@ -4,7 +4,6 @@ target/
 *.jar
 *.war
 *.ear
-.mvn/
 .idea/
 *.iml
 *.ipr
@@ -23,7 +22,6 @@ timescaledb_data/
 
 # Java/Maven/IDE junk
 target/
-.mvn/
 .idea/
 *.class
 # Byte-compiled / optimized / DLL files
