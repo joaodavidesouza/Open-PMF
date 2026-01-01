@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: 'Open-PMF Dashboards'
+    orgId: 1
+    folder: 'Industrial'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards

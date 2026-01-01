@@ -1,0 +1,67 @@
+{
+  "id": null,
+  "uid": "vibration_analysis_01",
+  "title": "Vibration Analysis",
+  "tags": ["industrial", "open-pmf"],
+  "timezone": "browser",
+  "schemaVersion": 42,
+  "version": 2,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Real-Time Vibration Monitor",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "datasource": {
+        "type": "postgres",
+        "uid": "openpmf-ds"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 30,
+            "gradientMode": "scheme",
+            "lineWidth": 2,
+            "thresholdsStyle": {
+              "mode": "area"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "openpmf-ds" },
+          "editorMode": "code",
+          "format": "table",
+          "rawSql": "SELECT timestamp AS \"time\", vibration AS \"Vibration G\", machine_id AS \"Machine\" FROM sensor_measurements WHERE $__timeFilter(timestamp) ORDER BY 1",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "editable": true,
+  "time": { "from": "now-5m", "to": "now" }
+}

@@ -5,8 +5,8 @@ import random
 import paho.mqtt.client as mqtt
 from datetime import datetime
 
-# 1. Load configuration from environment variables
-broker = os.getenv("MQTT_BROKER_HOST", "mosquitto_broker")
+# Load configuration from Environment Variables (Cloud/Docker Native)
+broker = os.getenv("MQTT_BROKER_HOST", "localhost")
 port = int(os.getenv("MQTT_PORT", 1883))
 topic = os.getenv("MQTT_TOPIC", "sensor/vibration")
 username = os.getenv("MQTT_USER")
@@ -16,48 +16,44 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("✅ Connected to MQTT Broker!")
     else:
-        print(f"❌ Connection failed with result code {rc}")
+        print(f"❌ Connection failed. Code: {rc}")
 
 client = mqtt.Client()
 client.on_connect = on_connect
 
-# 2. IMPORTANT: Set the username and password for authentication
 if username and password:
     client.username_pw_set(username, password)
 
 try:
     client.connect(broker, port, 60)
 except Exception as e:
-    print(f"🚫 Could not connect to broker: {e}")
+    print(f"🚫 Broker connection error: {e}")
 
 client.loop_start()
 
-print(f"🚀 Simulator started. Sending to topic: {topic}")
+print(f"🚀 Simulation started. Target topic: {topic}")
 
 try:
     while True:
-        # Generate dummy vibration data
+        # Generate base vibration data
         vibration = round(random.uniform(0.5, 3.0), 2)
         
-        # Randomly simulate an anomaly
+        # Anomaly Injection Logic:
+        # Simulate a mechanical fault with a 5% probability
         if random.random() > 0.95:
-            print("⚠️ Simulating ANOMALY spike!")
+            print("⚠️ ANOMALY INJECTED!")
             vibration = round(random.uniform(5.0, 10.0), 2)
 
+        # Standardized Payload Contract
         payload = {
-            "machineId": "cnc-machine-01",
+            "machine_id": "cnc-machine-01",
             "vibration": vibration,
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
 
-        # 3. Publish to the broker
-        result = client.publish(topic, json.dumps(payload))
-        
-        # Check if publish was successful
-        if result.rc == mqtt.MQTT_ERR_SUCCESS:
-            print(f"📤 Sent: {payload}")
-        else:
-            print(f"🛑 Failed to send message (Error code: {result.rc})")
+        # Send data to the messaging layer
+        client.publish(topic, json.dumps(payload))
+        print(f"📤 Sent Telemetry: {payload}")
             
         time.sleep(2)
 except KeyboardInterrupt:

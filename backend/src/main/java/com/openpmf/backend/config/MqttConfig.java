@@ -1,8 +1,9 @@
 package com.openpmf.backend.config;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.openpmf.backend.model.SensorMeasurement;
-import com.openpmf.backend.repository.MeasurementRepository;
+import com.openpmf.backend.service.MeasurementService;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,10 +15,8 @@ import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
-import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
-import org.springframework.messaging.MessagingException;
 
 import java.time.Instant;
 
@@ -30,7 +29,6 @@ public class MqttConfig {
     @Value("${mqtt.broker.url}")
     private String brokerUrl;
 
-    // 1. Injecting credentials from application.properties
     @Value("${mqtt.username}")
     private String username;
 
@@ -43,12 +41,9 @@ public class MqttConfig {
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[]{brokerUrl});
         options.setCleanSession(true);
-        
-        // 2. ACTIVATING AUTHENTICATION
         options.setUserName(username);
         options.setPassword(password.toCharArray());
-        options.setAutomaticReconnect(true); // Extra reliability
-        
+        options.setAutomaticReconnect(true);
         factory.setConnectionOptions(options);
         return factory;
     }
@@ -61,37 +56,44 @@ public class MqttConfig {
     @Bean
     public MessageProducer mqttInbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter("backendClient", mqttClientFactory(), topic);
-        
+                new MqttPahoMessageDrivenChannelAdapter("openpmf-backend-client", mqttClientFactory(), topic);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1); // Ensure at least once delivery
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
     }
 
+    /**
+     * Bridge between the Messaging Infrastructure (MQTT) and the Business Logic (Service).
+     * This handles hardware-specific JSON parsing.
+     */
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
-    public MessageHandler handler(MeasurementRepository repository) {
+    public MessageHandler mqttMessageHandler(MeasurementService measurementService) {
+        ObjectMapper objectMapper = new ObjectMapper();
         return message -> {
-            String payload = (String) message.getPayload();
-            System.out.println("📥 Received MQTT Message: " + payload);
-
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                var jsonNode = mapper.readTree(payload);
-                
-                String machineId = jsonNode.get("machineId").asText();
+                String payload = (String) message.getPayload();
+                JsonNode jsonNode = objectMapper.readTree(payload);
+
+                // Hardware Agnostic Mapping: Supports machine_id (Simulator) or machineId
+                String machineId = jsonNode.has("machine_id") ? 
+                                   jsonNode.get("machine_id").asText() : 
+                                   jsonNode.get("machineId").asText();
+
                 double vibration = jsonNode.get("vibration").asDouble();
-                Instant timestamp = jsonNode.has("timestamp") 
-                        ? Instant.parse(jsonNode.get("timestamp").asText()) 
-                        : Instant.now();
+                
+                // Use hardware timestamp if available, otherwise use system time
+                Instant timestamp = jsonNode.has("timestamp") ? 
+                                   Instant.parse(jsonNode.get("timestamp").asText()) : 
+                                   Instant.now();
 
                 SensorMeasurement measurement = new SensorMeasurement(machineId, vibration, timestamp);
-                repository.save(measurement);
-                System.out.println("✅ Data Saved to DB: ID=" + measurement.getId());
+                measurementService.processAndSave(measurement);
 
             } catch (Exception e) {
-                System.err.println("❌ Error processing MQTT message: " + e.getMessage());
+                System.err.println("❌ Error parsing MQTT Hardware Data: " + e.getMessage());
             }
         };
     }

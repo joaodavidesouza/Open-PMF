@@ -16,7 +16,7 @@ infra/data/mosquitto.db
 # Ignore environment secrets
 .env
 
-# Ignore Docker data (if you mapped any local folders)
+# Ignore Docker data
 mosquitto/data/
 mosquitto/log/
 timescaledb_data/
