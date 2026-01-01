@@ -23,4 +23,5 @@ jobs:
         run: chmod +x backend/mvnw
 
       - name: Run Backend Tests
-        run: ./backend/mvnw -f backend/pom.xml test
+        run: ./mvnw test
+        working-directory: ./backend
