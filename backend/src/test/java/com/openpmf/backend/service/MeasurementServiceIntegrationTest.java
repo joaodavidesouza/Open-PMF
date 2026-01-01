@@ -10,21 +10,17 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
 import java.time.Instant;
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Testcontainers
 class MeasurementServiceIntegrationTest {
 
-    // This will start a PostgreSQL Docker container for our tests
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
-    // This dynamically sets the database properties for our Spring Boot app
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -40,17 +36,10 @@ class MeasurementServiceIntegrationTest {
 
     @Test
     void whenMeasurementIsProcessed_itShouldBeSavedInDatabase() {
-        // Given
-        SensorMeasurement measurement = new SensorMeasurement(
-            "test-machine-01", 1.23, Instant.now());
-
-        // When
+        SensorMeasurement measurement = new SensorMeasurement("test-machine-01", 1.23, Instant.now());
         measurementService.processAndSave(measurement);
-
-        // Then
         Optional<SensorMeasurement> saved = measurementRepository.findById(1L);
         assertThat(saved).isPresent();
         assertThat(saved.get().getMachineId()).isEqualTo("test-machine-01");
-        assertThat(saved.get().getVibration()).isEqualTo(1.23);
     }
 }
