@@ -9,8 +9,10 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
 import java.time.Instant;
 import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -21,16 +23,6 @@ class MeasurementServiceIntegrationTest {
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
-<<<<<<< HEAD
-=======
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
-
->>>>>>> 0f581897008ae2875fbefa3fd194c24d1961585b
     @Autowired
     private MeasurementService measurementService;
 
@@ -39,15 +31,13 @@ class MeasurementServiceIntegrationTest {
 
     @Test
     void whenMeasurementIsProcessed_itShouldBeSavedInDatabase() {
-<<<<<<< HEAD
         // Given
         SensorMeasurement measurement = new SensorMeasurement("test-machine-01", 1.23, Instant.now());
 
         // When
-=======
-        SensorMeasurement measurement = new SensorMeasurement("test-machine-01", 1.23, Instant.now());
->>>>>>> 0f581897008ae2875fbefa3fd194c24d1961585b
         measurementService.processAndSave(measurement);
+
+        // Then
         Optional<SensorMeasurement> saved = measurementRepository.findById(1L);
         assertThat(saved).isPresent();
         assertThat(saved.get().getMachineId()).isEqualTo("test-machine-01");
