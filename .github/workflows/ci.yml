@@ -19,5 +19,8 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Grant execute permission to mvnw
+        run: chmod +x backend/mvnw
+
       - name: Run Backend Tests
-        run: ./mvnw -f backend/pom.xml test
+        run: ./backend/mvnw -f backend/pom.xml test
