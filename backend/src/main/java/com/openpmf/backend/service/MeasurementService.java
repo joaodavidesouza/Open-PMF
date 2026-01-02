@@ -10,26 +10,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MeasurementService {
 
-    private final MeasurementRepository repository;
+    private final MeasurementRepository measurementRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    public MeasurementService(MeasurementRepository repository, ApplicationEventPublisher eventPublisher) {
-        this.repository = repository;
+    public MeasurementService(MeasurementRepository measurementRepository, 
+                             ApplicationEventPublisher eventPublisher) {
+        this.measurementRepository = measurementRepository;
         this.eventPublisher = eventPublisher;
     }
 
-    /**
-     * Processes and persists sensor data.
-     * This layer is independent of the data source (MQTT, API, etc.)
-     */
     @Transactional
-    public void processAndSave(SensorMeasurement measurement) {
-        // 1. Persist data into the database
-        SensorMeasurement saved = repository.save(measurement);
-        
-        // 2. Publish internal event for the real-time SSE Dashboard
+    public SensorMeasurement processAndSave(SensorMeasurement measurement) {
+        SensorMeasurement saved = measurementRepository.save(measurement);
         eventPublisher.publishEvent(new NewMeasurementEvent(this, saved));
-        
-        System.out.println("🚀 Data Processed: Machine=" + saved.getMachineId() + " Vibration=" + saved.getVibration());
+        return saved;
     }
 }

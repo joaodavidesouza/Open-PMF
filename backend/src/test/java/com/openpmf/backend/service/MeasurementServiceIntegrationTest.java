@@ -5,24 +5,15 @@ import com.openpmf.backend.repository.MeasurementRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// This property explicitly disables the MQTT beans for this test, preventing the startup crash.
-@SpringBootTest(properties = {"app.mqtt.enabled=false"})
-@Testcontainers
-class MeasurementServiceIntegrationTest {
-
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+@SpringBootTest
+@ActiveProfiles("test")
+public class MeasurementServiceIntegrationTest {
 
     @Autowired
     private MeasurementService measurementService;
@@ -32,15 +23,25 @@ class MeasurementServiceIntegrationTest {
 
     @Test
     void whenMeasurementIsProcessed_itShouldBeSavedInDatabase() {
-        // Given
-        SensorMeasurement measurement = new SensorMeasurement("test-machine-01", 1.23, Instant.now());
+        // Arrange
+        SensorMeasurement measurement = new SensorMeasurement(
+            "test-machine-01", 
+            2.5, 
+            Instant.now()
+        );
+        
+        // Act
+        SensorMeasurement saved = measurementService.processAndSave(measurement);
 
-        // When
-        measurementService.processAndSave(measurement);
-
-        // Then
-        Optional<SensorMeasurement> saved = measurementRepository.findById(1L);
-        assertThat(saved).isPresent();
-        assertThat(saved.get().getMachineId()).isEqualTo("test-machine-01");
+        // Assert
+        assertThat(saved).isNotNull();
+        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.getMachineId()).isEqualTo("test-machine-01");
+        assertThat(saved.getVibration()).isEqualTo(2.5);
+        
+        // Verify it's actually in the database
+        SensorMeasurement fromDb = measurementRepository.findById(saved.getId()).orElse(null);
+        assertThat(fromDb).isNotNull();
+        assertThat(fromDb.getMachineId()).isEqualTo("test-machine-01");
     }
 }

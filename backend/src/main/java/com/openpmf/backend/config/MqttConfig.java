@@ -6,6 +6,7 @@ import com.openpmf.backend.model.SensorMeasurement;
 import com.openpmf.backend.service.MeasurementService;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -21,6 +22,7 @@ import org.springframework.messaging.MessageHandler;
 import java.time.Instant;
 
 @Configuration
+@ConditionalOnProperty(name = "app.mqtt.enabled", havingValue = "true", matchIfMissing = true)
 public class MqttConfig {
 
     @Value("${app.mqtt.topic}")
@@ -59,15 +61,11 @@ public class MqttConfig {
                 new MqttPahoMessageDrivenChannelAdapter("openpmf-backend-client", mqttClientFactory(), topic);
         adapter.setCompletionTimeout(5000);
         adapter.setConverter(new DefaultPahoMessageConverter());
-        adapter.setQos(1); // Ensure at least once delivery
+        adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
     }
 
-    /**
-     * Bridge between the Messaging Infrastructure (MQTT) and the Business Logic (Service).
-     * This handles hardware-specific JSON parsing.
-     */
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler mqttMessageHandler(MeasurementService measurementService) {
@@ -77,14 +75,12 @@ public class MqttConfig {
                 String payload = (String) message.getPayload();
                 JsonNode jsonNode = objectMapper.readTree(payload);
 
-                // Hardware Agnostic Mapping: Supports machine_id (Simulator) or machineId
                 String machineId = jsonNode.has("machine_id") ? 
                                    jsonNode.get("machine_id").asText() : 
                                    jsonNode.get("machineId").asText();
 
                 double vibration = jsonNode.get("vibration").asDouble();
                 
-                // Use hardware timestamp if available, otherwise use system time
                 Instant timestamp = jsonNode.has("timestamp") ? 
                                    Instant.parse(jsonNode.get("timestamp").asText()) : 
                                    Instant.now();
@@ -93,7 +89,7 @@ public class MqttConfig {
                 measurementService.processAndSave(measurement);
 
             } catch (Exception e) {
-                System.err.println("❌ Error parsing MQTT Hardware Data: " + e.getMessage());
+                System.err.println("Error parsing MQTT Hardware Data: " + e.getMessage());
             }
         };
     }
