@@ -9,7 +9,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -20,23 +19,9 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2
-
       - name: Grant execute permission to mvnw
         run: chmod +x backend/mvnw
 
-      - name: Verify Docker
-        run: docker version
-
       - name: Run Backend Tests
-        run: ./mvnw test
+        run: ./mvnw -P '!skip-integration-tests' test
         working-directory: ./backend
-        env:
-          SPRING_PROFILES_ACTIVE: test
-          TESTCONTAINERS_RYUK_DISABLED: true

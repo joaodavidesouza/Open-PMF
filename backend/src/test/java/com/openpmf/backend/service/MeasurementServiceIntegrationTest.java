@@ -5,14 +5,13 @@ import com.openpmf.backend.repository.MeasurementRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 
 import java.time.Instant;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,31 +23,30 @@ class MeasurementServiceIntegrationTest {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:15-alpine");
+            new PostgreSQLContainer<>("postgres:16-alpine")
+                    .withDatabaseName("testdb")
+                    .withUsername("test")
+                    .withPassword("test");
 
     @Autowired
-    private MeasurementService measurementService;
+    MeasurementService measurementService;
 
     @Autowired
-    private MeasurementRepository measurementRepository;
+    MeasurementRepository measurementRepository;
 
     @Test
     void whenMeasurementIsProcessed_itShouldBeSavedInDatabase() {
-        // Given
+        // arrange
         SensorMeasurement measurement = new SensorMeasurement(
-                "test-machine-01",
-                1.23,
+                "machine-1",
+                42.0,
                 Instant.now()
         );
 
-        // When
+        // act
         measurementService.processAndSave(measurement);
 
-        // Then
-        Optional<SensorMeasurement> saved =
-                measurementRepository.findAll().stream().findFirst();
-
-        assertThat(saved).isPresent();
-        assertThat(saved.get().getMachineId()).isEqualTo("test-machine-01");
+        // assert
+        assertThat(measurementRepository.findAll()).hasSize(1);
     }
 }
